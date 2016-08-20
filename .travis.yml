@@ -12,6 +12,7 @@ addons:
       - bc
       - rpm
       - npm
+      - node
       - unzip
 
 env:
