@@ -3,8 +3,10 @@
 [ -n "$ORACLE_COOKIE" ] || { echo "Missing ORACLE_COOKIE environment variable!"; exit 1; }
 [ -n "$ORACLE_FILE" ] || { echo "Missing ORACLE_FILE environment variable!"; exit 1; }
 
+echo pwd
 cd "$(dirname "$(readlink -f "$0")")"
-
+echo $HOME
+echo pwd
 npm install bluebird node-phantom-simple
 
 export COOKIES='cookies.txt'
