@@ -1,24 +1,29 @@
 // vim: set et sw=2 ts=2:
 "use strict";
-
-var fs = require('fs');
-
 var env = process.env;
 var Promise = require('bluebird');
 var Phantom = Promise.promisifyAll(require('node-phantom-simple'));
 var PhantomError = require('node-phantom-simple/headless_error');
 
-if (env['ORACLE_ZIP_DIR']) {
-  var directory = env['ORACLE_ZIP_DIR'];
-  if (!fs.existsSync(directory)) {
-    fs.mkdirSync(directory);
-  }
-  process.chdir(directory);
+var FileName;
+if(typeof process.argv[2] === 'undefined') {
+  FileName = env['ORACLE_FILE'];
+}
+else {
+  FileName = process.argv[2];
+}
+
+var credentials = Object.keys(env)
+  .filter(function (key) { return key.indexOf('ORACLE_LOGIN_') == 0 })
+  .map(function (key) { return [key.substr(13), env[key]] });
+
+if (credentials.length <= 0) {
+  console.error("Missing ORACLE_LOGIN environment variables!");
+  process.exit(1);
 }
 
 Phantom.createAsync({ parameters: { 'ssl-protocol': 'tlsv1' } }).then(function (browser) {
   browser = Promise.promisifyAll(browser, { suffix: 'Promise' });
-
   // Configure the browser, open a tab
   return browser
   .addCookiePromise({'name': 'oraclelicense', 'value': "accept-" + env['ORACLE_COOKIE'] + "-cookie", 'domain': '.oracle.com' })
@@ -35,7 +40,7 @@ Phantom.createAsync({ parameters: { 'ssl-protocol': 'tlsv1' } }).then(function (
 
     // Request the file, wait for the login page
     .then(function () {
-      return page.openPromise("https://edelivery.oracle.com/akam/otn/linux/" + env['ORACLE_FILE']).then(function (status) {
+      return page.openPromise("https://edelivery.oracle.com/akam/otn/linux/" + FileName).then(function (status) {
         if (status != 'success') throw "Unable to connect to oracle.com";
         return page.waitForSelectorPromise('input[type=password]', 5000);
       })
@@ -72,11 +77,18 @@ Phantom.createAsync({ parameters: { 'ssl-protocol': 'tlsv1' } }).then(function (
       })
       .then(function (form) {
         return browser.exitPromise().then(function () {
-          for (var key in env) {
-            if (key.indexOf('ORACLE_LOGIN_') == 0 && env.hasOwnProperty(key)) {
-              var name = key.substr(13) + '=';
-              form.data = form.data.replace(name, name + env[key]);
-            }
+          var unapplied = credentials.filter(function (tuple) {
+            var applied = false;
+            form.data = form.data.replace(tuple[0] + '=', function (name) {
+              applied = true;
+              return name + encodeURIComponent(tuple[1]);
+            });
+            return !applied;
+          })
+          .map(function (tuple) { return tuple[0] });
+
+          if (unapplied.length > 0) {
+            console.warn("Unable to use all ORACLE_LOGIN environment variables: %j", unapplied);
           }
 
           var cmd = ['curl', [
@@ -84,7 +96,7 @@ Phantom.createAsync({ parameters: { 'ssl-protocol': 'tlsv1' } }).then(function (
             '--cookie-jar', env['COOKIES'],
             '--data', '@-',
             '--location',
-            '--output', require('path').basename(env['ORACLE_FILE']),
+            '--output', require('path').basename(FileName),
             '--user-agent', env['USER_AGENT'],
             form.action
           ]];
