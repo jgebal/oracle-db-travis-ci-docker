@@ -7,7 +7,7 @@ env:
     - ORACLE_COOKIE=sqldev
     - ORACLE_FILE=oracle11g/xe/oracle-xe-11.2.0-1.0.x86_64.rpm.zip
     - ORACLE_HOME=/u01/app/oracle/product/11.2.0/xe
-    - ORACLE_ZIP_DIR=dockerfiles/11.2.0.2
+    - ORACLE_ZIP_DIR=$TRAVIS_BUILD_DIR/dockerfiles/11.2.0.2
     - NLS_LANG=AMERICAN_AMERICA.AL32UTF8
     - ORACLE_BASE=/u01/app/oracle
     - LD_LIBRARY_PATH=$ORACLE_HOME/lib
